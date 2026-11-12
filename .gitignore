@@ -1,0 +1,7 @@
+mnn_train
+mnn_bench
+mnn_tests
+build*/
+letter-recognition.data
+smoke/
+__pycache__/
