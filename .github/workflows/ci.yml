@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install doctest
+        run: sudo apt-get update && sudo apt-get install -y doctest-dev
+      - name: Tests (gradient checks) with AddressSanitizer + UBSan
+        run: |
+          cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DMNN_SANITIZE=ON && cmake --build build-asan -j2
+          ctest --test-dir build-asan --output-on-failure
+      - name: Release build (make and CMake)
+        run: |
+          make all test
+          cmake -S . -B build && cmake --build build -j2
+      - name: Smoke runs
+        run: |
+          ./mnn_train --task gated --main 16,4 --control 16 --epochs 3
+          ./scripts/get_letter_data.sh
+          ./mnn_train --task letter --control 16,8 --epochs 1
+          ./mnn_bench --epochs 1 --seeds 1 --out smoke && cat smoke/benchmark.md
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff matplotlib
+      - run: ruff check tools && ruff format --check tools
+      - run: python tools/plot_curves.py --out /tmp/curves.png
